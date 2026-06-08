@@ -1,13 +1,9 @@
 from flask import Flask, render_template, request, redirect, url_for, flash
-database_url = os.getenv('DATABASE_URL')
-if database_url and database_url.startswith('postgres://'):
-    database_url = database_url.replace('postgres://', 'postgresql://', 1)
-app.config['SQLALCHEMY_DATABASE_URI'] = database_url or 'sqlite:///tienda.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
-import os
+import os                           # ✅ IMPORTANTE: DEBE IR ANTES DE USAR os.getenv
 from dotenv import load_dotenv
 import sentry_sdk
 from flask_mail import Mail, Message
@@ -24,7 +20,12 @@ sentry_sdk.init(
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'tu-clave-secreta-cambiala'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///tienda.db'
+
+# ========== BASE DE DATOS (PostgreSQL en Render) ==========
+database_url = os.getenv('DATABASE_URL')
+if database_url and database_url.startswith('postgres://'):
+    database_url = database_url.replace('postgres://', 'postgresql://', 1)
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url or 'sqlite:///tienda.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # ========== CORREO ==========
@@ -51,9 +52,10 @@ db = SQLAlchemy(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
+
 mail = Mail(app)
 
-# ========== MODELOS ==========
+# ========== MODELOS (10 TABLAS) ==========
 class Rol(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(50), nullable=False)
@@ -113,15 +115,22 @@ class LogSistema(db.Model):
 def load_user(user_id):
     return Usuario.query.get(int(user_id))
 
+# ========== FUNCIÓN SUBIR A S3 ==========
 def subir_imagen_a_s3(archivo, producto_id):
     try:
         nombre_archivo = f"producto_{producto_id}_{secure_filename(archivo.filename)}"
-        s3_client.upload_fileobj(archivo, app.config['S3_BUCKET'], nombre_archivo, ExtraArgs={'ACL': 'public-read'})
+        s3_client.upload_fileobj(
+            archivo,
+            app.config['S3_BUCKET'],
+            nombre_archivo,
+            ExtraArgs={'ACL': 'public-read'}
+        )
         return f"https://{app.config['S3_BUCKET']}.s3.amazonaws.com/{nombre_archivo}"
     except Exception as e:
         print(f"Error: {e}")
         return None
 
+# ========== RUTAS ==========
 @app.route('/')
 def index():
     return redirect(url_for('login'))
@@ -130,7 +139,12 @@ def index():
 def registro():
     if request.method == 'POST':
         hashed_password = generate_password_hash(request.form['password'])
-        nuevo_usuario = Usuario(nombre=request.form['nombre'], email=request.form['email'], password=hashed_password, rol_id=2)
+        nuevo_usuario = Usuario(
+            nombre=request.form['nombre'],
+            email=request.form['email'],
+            password=hashed_password,
+            rol_id=2
+        )
         db.session.add(nuevo_usuario)
         db.session.commit()
         flash('Registro exitoso', 'success')
@@ -163,7 +177,11 @@ def productos():
 def comprar(producto_id):
     producto = Producto.query.get_or_404(producto_id)
     try:
-        msg = Message(subject=f'Compra: {producto.nombre}', recipients=[current_user.email], body=f'Hola {current_user.nombre},\n\nCompraste: {producto.nombre}\nPrecio: ${producto.precio}')
+        msg = Message(
+            subject=f'Compra: {producto.nombre}',
+            recipients=[current_user.email],
+            body=f'Hola {current_user.nombre},\n\nCompraste: {producto.nombre}\nPrecio: ${producto.precio}'
+        )
         mail.send(msg)
         flash('Compra realizada. Correo enviado', 'success')
     except Exception as e:
