@@ -1,8 +1,9 @@
 flask
 flask-sqlalchemy
 flask-login
+flask-mail
 python-dotenv
 boto3
-requests
 sentry-sdk
-flask-mail
+werkzeug
+gunicorn
