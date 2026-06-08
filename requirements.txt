@@ -7,3 +7,4 @@ boto3
 sentry-sdk
 werkzeug
 gunicorn
+psycopg2-binary 
