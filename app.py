@@ -8,6 +8,8 @@ from dotenv import load_dotenv
 import sentry_sdk
 from flask_mail import Mail, Message
 import boto3
+import resource
+resource.setrlimit(resource.RLIMIT_AS, (256 * 1024 * 1024, 256 * 1024 * 1024))
 
 # ========== CARGAR VARIABLES DE ENTORNO ==========
 load_dotenv()
