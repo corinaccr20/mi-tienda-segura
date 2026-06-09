@@ -172,20 +172,17 @@ def logout():
 def productos():
     return render_template('productos.html', productos=Producto.query.all())
 
-@app.route('/comprar/<int:producto_id>')
 @login_required
 def comprar(producto_id):
-    producto = Producto.query.get_or_404(producto_id)
     try:
-        msg = Message(
-            subject=f'Compra: {producto.nombre}',
-            recipients=[current_user.email],
-            body=f'Hola {current_user.nombre},\n\nCompraste: {producto.nombre}\nPrecio: ${producto.precio}'
-        )
-        mail.send(msg)
-        flash('Compra realizada. Correo enviado', 'success')
+        producto = Producto.query.get_or_404(producto_id)
+        print(f"Producto encontrado: {producto.nombre}")  # LOG
+        
+        flash(f'Compra simulada de: {producto.nombre}', 'success')
     except Exception as e:
-        flash(f'Error: {e}', 'warning')
+        print(f"ERROR en compra: {e}")  # LOG
+        flash(f'Error: {str(e)}', 'danger')
+    
     return redirect(url_for('productos'))
 
 @app.route('/admin/productos')
