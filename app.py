@@ -143,7 +143,16 @@ def productos():
 @login_required
 def comprar(producto_id):
     producto = Producto.query.get_or_404(producto_id)
-    flash(f'✅ Compra simulada de: {producto.nombre} - Precio: ${producto.precio}', 'success')
+    try:
+        msg = Message(
+            subject=f'Compra confirmada: {producto.nombre}',
+            recipients=[current_user.email],
+            body=f'Hola {current_user.nombre},\n\nGracias por tu compra.\nProducto: {producto.nombre}\nPrecio: ${producto.precio}\n\nSaludos.'
+        )
+        mail.send(msg)
+        flash(f'✅ Compra realizada. Se envió un correo a {current_user.email}', 'success')
+    except Exception as e:
+        flash(f'✅ Compra simulada (error de correo: {e})', 'warning')
     return redirect(url_for('productos'))
 
 # ========== INICIALIZAR DATOS ==========
