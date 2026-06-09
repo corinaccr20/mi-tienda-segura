@@ -3,7 +3,6 @@ from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 from flask_mail import Mail, Message
 
@@ -12,8 +11,7 @@ load_dotenv()
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'clave-secreta-para-desarrollo'
 
-# ========== CONFIGURACIÓN DE BASE DE DATOS POSTGRESQL ==========
-# Usar PostgreSQL en Render (gratis y persistente)
+# ========== BASE DE DATOS POSTGRESQL ==========
 database_url = os.getenv('DATABASE_URL')
 if database_url and database_url.startswith('postgres://'):
     database_url = database_url.replace('postgres://', 'postgresql://', 1)
@@ -21,12 +19,11 @@ if database_url and database_url.startswith('postgres://'):
 if database_url:
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 else:
-    # Fallback a SQLite (solo para desarrollo local)
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///tienda.db'
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# ========== CONFIGURACIÓN DE CORREO ==========
+# ========== CORREO (opcional, desactivado por ahora) ==========
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
@@ -37,10 +34,9 @@ db = SQLAlchemy(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
-
 mail = Mail(app)
 
-# ========== MODELOS (10 TABLAS) ==========
+# ========== MODELOS ==========
 class Rol(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(50), nullable=False)
@@ -150,26 +146,16 @@ def comprar(producto_id):
     flash(f'✅ Compra simulada de: {producto.nombre} - Precio: ${producto.precio}', 'success')
     return redirect(url_for('productos'))
 
-# ========== INICIALIZAR BASE DE DATOS ==========
+# ========== INICIALIZAR DATOS ==========
 with app.app_context():
-    print("🔧 Creando tablas en PostgreSQL...")
     db.create_all()
-    
-    # Insertar roles
     if not Rol.query.first():
-        print("📌 Insertando roles...")
         db.session.add_all([Rol(nombre='admin'), Rol(nombre='cliente')])
         db.session.commit()
-    
-    # Insertar categorías
     if not Categoria.query.first():
-        print("📌 Insertando categorías...")
         db.session.add_all([Categoria(nombre='Electrónica'), Categoria(nombre='Ropa'), Categoria(nombre='Hogar')])
         db.session.commit()
-    
-    # Insertar productos
     if not Producto.query.first():
-        print("📌 Insertando productos...")
         productos = [
             Producto(nombre='Laptop Gamer', descripcion='Laptop de alta gama con 16GB RAM y 512GB SSD ideal para gaming', precio=1200.00, stock=10, categoria_id=1),
             Producto(nombre='Audífonos Bluetooth', descripcion='Audífonos inalámbricos con cancelación de ruido y 20 horas de batería', precio=89.99, stock=25, categoria_id=1),
@@ -179,8 +165,6 @@ with app.app_context():
         ]
         db.session.add_all(productos)
         db.session.commit()
-    
-    print("✅ Base de datos PostgreSQL inicializada correctamente")
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 10000)), debug=False)
