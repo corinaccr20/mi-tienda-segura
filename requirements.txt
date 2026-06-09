@@ -4,7 +4,4 @@ flask-login
 flask-mail
 python-dotenv
 boto3
-sentry-sdk
-werkzeug
-gunicorn
 psycopg2-binary 

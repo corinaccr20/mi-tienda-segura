@@ -12,23 +12,25 @@ load_dotenv()
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'clave-secreta-para-desarrollo'
 
-# ========== CONFIGURACIÓN DE BASE DE DATOS ==========
-# En Render, usamos /data/tienda.db (disco persistente)
-# En local, usamos tienda.db en el directorio actual
-if os.environ.get('RENDER'):
-    database_path = '/data/tienda.db'
-else:
-    database_path = 'tienda.db'
+# ========== CONFIGURACIÓN DE BASE DE DATOS POSTGRESQL ==========
+# Usar PostgreSQL en Render (gratis y persistente)
+database_url = os.getenv('DATABASE_URL')
+if database_url and database_url.startswith('postgres://'):
+    database_url = database_url.replace('postgres://', 'postgresql://', 1)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{database_path}'
+if database_url:
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+else:
+    # Fallback a SQLite (solo para desarrollo local)
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///tienda.db'
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# ========== CONFIGURACIÓN DE CORREO (opcional) ==========
+# ========== CONFIGURACIÓN DE CORREO ==========
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME', '')
-app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD', '')
+
 
 db = SQLAlchemy(app)
 login_manager = LoginManager()
@@ -97,38 +99,6 @@ class LogSistema(db.Model):
 def load_user(user_id):
     return Usuario.query.get(int(user_id))
 
-# ========== CREAR TABLAS E INSERTAR DATOS INICIALES ==========
-with app.app_context():
-    print("🔧 Creando tablas...")
-    db.create_all()
-    
-    # Insertar roles
-    if not Rol.query.first():
-        print("📌 Insertando roles...")
-        db.session.add_all([Rol(nombre='admin'), Rol(nombre='cliente')])
-        db.session.commit()
-    
-    # Insertar categorías
-    if not Categoria.query.first():
-        print("📌 Insertando categorías...")
-        db.session.add_all([Categoria(nombre='Electrónica'), Categoria(nombre='Ropa'), Categoria(nombre='Hogar')])
-        db.session.commit()
-    
-    # Insertar productos
-    if not Producto.query.first():
-        print("📌 Insertando productos...")
-        productos = [
-            Producto(nombre='Laptop Gamer', descripcion='Laptop de alta gama con 16GB RAM y 512GB SSD ideal para gaming', precio=1200.00, stock=10, categoria_id=1),
-            Producto(nombre='Audífonos Bluetooth', descripcion='Audífonos inalámbricos con cancelación de ruido y 20 horas de batería', precio=89.99, stock=25, categoria_id=1),
-            Producto(nombre='Camiseta Deportiva', descripcion='Camiseta transpirable 100% algodón para hacer ejercicio', precio=25.50, stock=50, categoria_id=2),
-            Producto(nombre='Lámpara LED', descripcion='Lámpara de escritorio con ajuste de brillo y temperatura', precio=35.00, stock=15, categoria_id=3),
-            Producto(nombre='Mouse Inalámbrico', descripcion='Mouse ergonómico con conexión USB y 3 niveles de DPI', precio=19.99, stock=40, categoria_id=1)
-        ]
-        db.session.add_all(productos)
-        db.session.commit()
-    
-    print("✅ Tablas creadas y datos insertados correctamente")
-
 # ========== RUTAS ==========
 @app.route('/')
 def index():
@@ -178,6 +148,38 @@ def comprar(producto_id):
     producto = Producto.query.get_or_404(producto_id)
     flash(f'✅ Compra simulada de: {producto.nombre} - Precio: ${producto.precio}', 'success')
     return redirect(url_for('productos'))
+
+# ========== INICIALIZAR BASE DE DATOS ==========
+with app.app_context():
+    print("🔧 Creando tablas en PostgreSQL...")
+    db.create_all()
+    
+    # Insertar roles
+    if not Rol.query.first():
+        print("📌 Insertando roles...")
+        db.session.add_all([Rol(nombre='admin'), Rol(nombre='cliente')])
+        db.session.commit()
+    
+    # Insertar categorías
+    if not Categoria.query.first():
+        print("📌 Insertando categorías...")
+        db.session.add_all([Categoria(nombre='Electrónica'), Categoria(nombre='Ropa'), Categoria(nombre='Hogar')])
+        db.session.commit()
+    
+    # Insertar productos
+    if not Producto.query.first():
+        print("📌 Insertando productos...")
+        productos = [
+            Producto(nombre='Laptop Gamer', descripcion='Laptop de alta gama con 16GB RAM y 512GB SSD ideal para gaming', precio=1200.00, stock=10, categoria_id=1),
+            Producto(nombre='Audífonos Bluetooth', descripcion='Audífonos inalámbricos con cancelación de ruido y 20 horas de batería', precio=89.99, stock=25, categoria_id=1),
+            Producto(nombre='Camiseta Deportiva', descripcion='Camiseta transpirable 100% algodón para hacer ejercicio', precio=25.50, stock=50, categoria_id=2),
+            Producto(nombre='Lámpara LED', descripcion='Lámpara de escritorio con ajuste de brillo y temperatura', precio=35.00, stock=15, categoria_id=3),
+            Producto(nombre='Mouse Inalámbrico', descripcion='Mouse ergonómico con conexión USB y 3 niveles de DPI', precio=19.99, stock=40, categoria_id=1)
+        ]
+        db.session.add_all(productos)
+        db.session.commit()
+    
+    print("✅ Base de datos PostgreSQL inicializada correctamente")
 
 if __name__ == '__main__':
     app.run(debug=True)
