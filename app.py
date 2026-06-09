@@ -155,7 +155,7 @@ def comprar(producto_id):
         flash(f'✅ Compra simulada (error de correo: {e})', 'warning')
     return redirect(url_for('productos'))
 
-    @app.route('/test-email')
+@app.route('/test-email')
 def test_email():
     try:
         msg = Message('Test', recipients=['tucorreo@gmail.com'], body='Test')
