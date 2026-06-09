@@ -229,12 +229,15 @@ def subir_imagen(producto_id):
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
+        
         if not Rol.query.first():
             db.session.add_all([Rol(nombre='admin'), Rol(nombre='cliente')])
             db.session.commit()
+        
         if not Categoria.query.first():
             db.session.add_all([Categoria(nombre='Electrónica'), Categoria(nombre='Ropa'), Categoria(nombre='Hogar')])
             db.session.commit()
+        
         if not Producto.query.first():
             db.session.add_all([
                 Producto(nombre='Laptop Gamer', descripcion='Laptop de alta gama con 16GB RAM y 512GB SSD ideal para gaming', precio=1200.00, stock=10, categoria_id=1),
@@ -244,9 +247,5 @@ if __name__ == '__main__':
                 Producto(nombre='Mouse Inalámbrico', descripcion='Mouse ergonómico con conexión USB y 3 niveles de DPI', precio=19.99, stock=40, categoria_id=1)
             ])
             db.session.commit()
-            with app.app_context():
-    db.create_all()
-    if not Producto.query.first():
-        # insertar productos
-        pass
+    
     app.run(debug=True)
