@@ -172,8 +172,8 @@ def logout():
 def productos():
     return render_template('productos.html', productos=Producto.query.all())
 
-@login_required
-def comprar(producto_id):
+@app.route('/compar/<int:producto_id>')
+def compar(producto_id):
     try:
         producto = Producto.query.get_or_404(producto_id)
         print(f"Producto encontrado: {producto.nombre}")  # LOG
