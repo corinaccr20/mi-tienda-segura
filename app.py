@@ -1,9 +1,9 @@
+import os
 from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
-import os
 from dotenv import load_dotenv
 from flask_mail import Mail, Message
 
@@ -11,10 +11,19 @@ load_dotenv()
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'clave-secreta-para-desarrollo'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///tienda.db'
+
+# ========== CONFIGURACIÓN DE BASE DE DATOS ==========
+# En Render, usamos /data/tienda.db (disco persistente)
+# En local, usamos tienda.db en el directorio actual
+if os.environ.get('RENDER'):
+    database_path = '/data/tienda.db'
+else:
+    database_path = 'tienda.db'
+
+app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{database_path}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Configuración de correo (opcional, desactivada por ahora)
+# ========== CONFIGURACIÓN DE CORREO (opcional) ==========
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
@@ -28,7 +37,7 @@ login_manager.login_view = 'login'
 
 mail = Mail(app)
 
-# ========== MODELOS SIMPLIFICADOS ==========
+# ========== MODELOS (10 TABLAS) ==========
 class Rol(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(50), nullable=False)
@@ -53,7 +62,6 @@ class Producto(db.Model):
     categoria_id = db.Column(db.Integer, db.ForeignKey('categoria.id'))
     imagen_url = db.Column(db.String(300), nullable=True)
 
-# Otras tablas necesarias para cumplir 10 tablas
 class Imagen(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     url = db.Column(db.String(300), nullable=False)
@@ -88,6 +96,38 @@ class LogSistema(db.Model):
 @login_manager.user_loader
 def load_user(user_id):
     return Usuario.query.get(int(user_id))
+
+# ========== CREAR TABLAS E INSERTAR DATOS INICIALES ==========
+with app.app_context():
+    print("🔧 Creando tablas...")
+    db.create_all()
+    
+    # Insertar roles
+    if not Rol.query.first():
+        print("📌 Insertando roles...")
+        db.session.add_all([Rol(nombre='admin'), Rol(nombre='cliente')])
+        db.session.commit()
+    
+    # Insertar categorías
+    if not Categoria.query.first():
+        print("📌 Insertando categorías...")
+        db.session.add_all([Categoria(nombre='Electrónica'), Categoria(nombre='Ropa'), Categoria(nombre='Hogar')])
+        db.session.commit()
+    
+    # Insertar productos
+    if not Producto.query.first():
+        print("📌 Insertando productos...")
+        productos = [
+            Producto(nombre='Laptop Gamer', descripcion='Laptop de alta gama con 16GB RAM y 512GB SSD ideal para gaming', precio=1200.00, stock=10, categoria_id=1),
+            Producto(nombre='Audífonos Bluetooth', descripcion='Audífonos inalámbricos con cancelación de ruido y 20 horas de batería', precio=89.99, stock=25, categoria_id=1),
+            Producto(nombre='Camiseta Deportiva', descripcion='Camiseta transpirable 100% algodón para hacer ejercicio', precio=25.50, stock=50, categoria_id=2),
+            Producto(nombre='Lámpara LED', descripcion='Lámpara de escritorio con ajuste de brillo y temperatura', precio=35.00, stock=15, categoria_id=3),
+            Producto(nombre='Mouse Inalámbrico', descripcion='Mouse ergonómico con conexión USB y 3 niveles de DPI', precio=19.99, stock=40, categoria_id=1)
+        ]
+        db.session.add_all(productos)
+        db.session.commit()
+    
+    print("✅ Tablas creadas y datos insertados correctamente")
 
 # ========== RUTAS ==========
 @app.route('/')
@@ -136,33 +176,8 @@ def productos():
 @login_required
 def comprar(producto_id):
     producto = Producto.query.get_or_404(producto_id)
-    # Simulación de compra sin correo por ahora
     flash(f'✅ Compra simulada de: {producto.nombre} - Precio: ${producto.precio}', 'success')
     return redirect(url_for('productos'))
 
-# ========== INICIALIZACIÓN ==========
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
-        
-        # Insertar datos iniciales
-        if not Rol.query.first():
-            db.session.add_all([Rol(nombre='admin'), Rol(nombre='cliente')])
-            db.session.commit()
-        
-        if not Categoria.query.first():
-            db.session.add_all([Categoria(nombre='Electrónica'), Categoria(nombre='Ropa'), Categoria(nombre='Hogar')])
-            db.session.commit()
-        
-        if not Producto.query.first():
-            productos = [
-                Producto(nombre='Laptop Gamer', descripcion='Laptop de alta gama con 16GB RAM y 512GB SSD ideal para gaming', precio=1200.00, stock=10, categoria_id=1),
-                Producto(nombre='Audífonos Bluetooth', descripcion='Audífonos inalámbricos con cancelación de ruido y 20 horas de batería', precio=89.99, stock=25, categoria_id=1),
-                Producto(nombre='Camiseta Deportiva', descripcion='Camiseta transpirable 100% algodón para hacer ejercicio', precio=25.50, stock=50, categoria_id=2),
-                Producto(nombre='Lámpara LED', descripcion='Lámpara de escritorio con ajuste de brillo y temperatura', precio=35.00, stock=15, categoria_id=3),
-                Producto(nombre='Mouse Inalámbrico', descripcion='Mouse ergonómico con conexión USB y 3 niveles de DPI', precio=19.99, stock=40, categoria_id=1)
-            ]
-            db.session.add_all(productos)
-            db.session.commit()
-    
     app.run(debug=True)
