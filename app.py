@@ -3,18 +3,23 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
-import os                           # ✅ IMPORTANTE: DEBE IR ANTES DE USAR os.getenv
+import os                           
 from dotenv import load_dotenv
 import sentry_sdk
 from flask_mail import Mail, Message
 import boto3
 import resource
-resource.setrlimit(resource.RLIMIT_AS, (256 * 1024 * 1024, 256 * 1024 * 1024))
+try:
+    resource.setrlimit(resource.RLIMIT_AS, (256 * 1024 * 1024, 256 * 1024 * 1024))
+except:
+    pass
 
-# ========== CARGAR VARIABLES DE ENTORNO ==========
 load_dotenv()
 
-# ========== SENTRY ==========
+# sentry_sdk.init(
+#     dsn="https://...",
+#     traces_sample_rate=1.0,
+# )
 sentry_sdk.init(
     dsn="https://68972cd08be171eb4bf5412b571b4fb4@04511526618529792.ingest.us.sentry.io/451152",
     traces_sample_rate=1.0,
@@ -23,12 +28,7 @@ sentry_sdk.init(
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'tu-clave-secreta-cambiala'
 
-# ========== BASE DE DATOS (PostgreSQL en Render) ==========
-database_url = os.getenv('DATABASE_URL')
-if database_url and database_url.startswith('postgres://'):
-    database_url = database_url.replace('postgres://', 'postgresql://', 1)
-app.config['SQLALCHEMY_DATABASE_URI'] = database_url or 'sqlite:///tienda.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///tienda.db'
 
 # ========== CORREO ==========
 # ========== CONFIGURACIÓN DE CORREO ==========
@@ -244,4 +244,9 @@ if __name__ == '__main__':
                 Producto(nombre='Mouse Inalámbrico', descripcion='Mouse ergonómico con conexión USB y 3 niveles de DPI', precio=19.99, stock=40, categoria_id=1)
             ])
             db.session.commit()
+            with app.app_context():
+    db.create_all()
+    if not Producto.query.first():
+        # insertar productos
+        pass
     app.run(debug=True)
