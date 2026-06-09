@@ -173,15 +173,44 @@ def productos():
     return render_template('productos.html', productos=Producto.query.all())
 
 @app.route('/comprar/<int:producto_id>')
+@login_required
 def comprar(producto_id):
     try:
         producto = Producto.query.get_or_404(producto_id)
-        print(f"Producto encontrado: {producto.nombre}")  # LOG
         
-        flash(f'Compra simulada de: {producto.nombre}', 'success')
+        # Crear el mensaje de correo
+        msg = Message(
+            subject=f'✅ Confirmación de compra - {producto.nombre}',
+            recipients=[current_user.email],
+            body=f'''
+Hola {current_user.nombre},
+
+¡Gracias por tu compra en Mi Tienda!
+
+Detalle de tu compra:
+━━━━━━━━━━━━━━━━━━━━━
+📦 Producto: {producto.nombre}
+💰 Precio: ${producto.precio}
+📊 Stock restante: {producto.stock}
+━━━━━━━━━━━━━━━━━━━━━
+
+Tu pedido ha sido registrado exitosamente.
+
+Pronto recibirás información de seguimiento.
+
+Saludos,
+El equipo de Mi Tienda
+'''
+        )
+        
+        # Enviar el correo
+        mail.send(msg)
+        
+        flash(f'✅ Compra realizada con éxito. Se ha enviado un correo a {current_user.email}', 'success')
+        
     except Exception as e:
-        print(f"ERROR en compra: {e}")  # LOG
-        flash(f'Error: {str(e)}', 'danger')
+        print(f"❌ Error en compra: {e}")
+        flash(f'❌ Compra simulada, pero error al enviar correo: {str(e)}', 'warning')
     
     return redirect(url_for('productos'))
 
