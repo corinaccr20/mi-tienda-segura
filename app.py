@@ -155,6 +155,15 @@ def comprar(producto_id):
         flash(f'✅ Compra simulada (error de correo: {e})', 'warning')
     return redirect(url_for('productos'))
 
+    @app.route('/test-email')
+def test_email():
+    try:
+        msg = Message('Test', recipients=['tucorreo@gmail.com'], body='Test')
+        mail.send(msg)
+        return 'Correo enviado'
+    except Exception as e:
+        return f'Error: {e}'
+
 # ========== INICIALIZAR DATOS ==========
 with app.app_context():
     db.create_all()
