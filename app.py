@@ -29,13 +29,14 @@ app.config['SQLALCHEMY_DATABASE_URI'] = database_url or 'sqlite:///tienda.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # ========== CORREO ==========
+# ========== CONFIGURACIÓN DE CORREO ==========
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USE_SSL'] = False
 app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
-app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_USERNAME')
-
+app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_USERNAME', 'mitienda448@gmail.com')
 # ========== S3 ==========
 app.config['S3_BUCKET'] = os.getenv('S3_BUCKET')
 app.config['AWS_ACCESS_KEY'] = os.getenv('AWS_ACCESS_KEY')
@@ -175,42 +176,24 @@ def productos():
 @app.route('/comprar/<int:producto_id>')
 @login_required
 def comprar(producto_id):
+    producto = Producto.query.get_or_404(producto_id)
+    
     try:
-        producto = Producto.query.get_or_404(producto_id)
+        print(f"Intentando enviar correo a: {current_user.email}")
         
-        # Crear el mensaje de correo
         msg = Message(
-            subject=f'✅ Confirmación de compra - {producto.nombre}',
+            subject=f'Compra: {producto.nombre}',
             recipients=[current_user.email],
-            body=f'''
-Hola {current_user.nombre},
-
-¡Gracias por tu compra en Mi Tienda!
-
-Detalle de tu compra:
-━━━━━━━━━━━━━━━━━━━━━
-📦 Producto: {producto.nombre}
-💰 Precio: ${producto.precio}
-📊 Stock restante: {producto.stock}
-━━━━━━━━━━━━━━━━━━━━━
-
-Tu pedido ha sido registrado exitosamente.
-
-Pronto recibirás información de seguimiento.
-
-Saludos,
-El equipo de Mi Tienda
-'''
+            body=f'Hola {current_user.nombre},\n\nCompraste: {producto.nombre}\nPrecio: ${producto.precio}\n\nGracias por tu compra.'
         )
         
-        # Enviar el correo
         mail.send(msg)
-        
-        flash(f'✅ Compra realizada con éxito. Se ha enviado un correo a {current_user.email}', 'success')
+        print("Correo enviado exitosamente")
+        flash(f'✅ Compra realizada. Correo enviado a {current_user.email}', 'success')
         
     except Exception as e:
-        print(f"❌ Error en compra: {e}")
-        flash(f'❌ Compra simulada, pero error al enviar correo: {str(e)}', 'warning')
+        print(f"❌ ERROR al enviar correo: {e}")
+        flash(f'✅ Compra simulada (error de correo: {str(e)})', 'warning')
     
     return redirect(url_for('productos'))
 
